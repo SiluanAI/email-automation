@@ -244,21 +244,34 @@ function switchTab(tabName) {
     document.getElementById(tabName + 'Content').classList.add('active');
 }
 
+// Fix rapid pentru funcția processEmailList - ÎNLOCUIEȘTE doar această funcție în script.js
+
 // Procesează lista de emailuri introdusă manual
 function processEmailList() {
-    const emailListText = document.getElementById('emailListInput').value.trim();
-    
-    if (!emailListText) {
-        alert('Te rog introduce lista de emailuri!');
-        return;
-    }
+    console.log('🔄 Processing email list...');
     
     try {
+        const emailListInput = document.getElementById('emailListInput');
+        if (!emailListInput) {
+            console.error('Element emailListInput not found');
+            alert('Nu găsesc zona de input pentru emailuri!');
+            return;
+        }
+        
+        const emailListText = emailListInput.value.trim();
+        console.log('📝 Email list text:', emailListText);
+        
+        if (!emailListText) {
+            alert('Te rog introduce lista de emailuri!');
+            return;
+        }
+        
         emailData = [];
         const lines = emailListText.split('\n');
+        console.log('📋 Lines to process:', lines.length);
         
-        for (let line of lines) {
-            line = line.trim();
+        for (let i = 0; i < lines.length; i++) {
+            let line = lines[i].trim();
             if (!line) continue; // Skip empty lines
             
             let email, nume;
@@ -280,10 +293,13 @@ function processEmailList() {
                     email: email,
                     nume: nume
                 });
+                console.log('✅ Added:', email, nume);
             } else {
-                console.warn('Email invalid ignorat:', email);
+                console.warn('❌ Invalid email ignored:', email);
             }
         }
+        
+        console.log('📊 Total emails processed:', emailData.length);
         
         if (emailData.length > 0) {
             dataSource = 'Listă introdusă manual';
@@ -294,11 +310,61 @@ function processEmailList() {
         }
         
     } catch (error) {
-        console.error('Eroare la procesarea listei:', error);
-        alert('Eroare la procesarea listei de emailuri!');
+        console.error('❌ Error in processEmailList:', error);
+        alert('Eroare la procesarea listei: ' + error.message);
     }
 }
 
+// Funcție helper pentru showEmailTemplatesSection dacă nu există
+function showEmailTemplatesSection() {
+    console.log('📧 Showing email templates section...');
+    
+    try {
+        const templateSection = document.getElementById('emailTemplatesSection');
+        if (templateSection) {
+            templateSection.style.display = 'block';
+        }
+        
+        // Inițializează template-uri default dacă nu există
+        const emailSubject = document.querySelector('.subject-input, #emailSubject');
+        const emailTemplate = document.querySelector('.template-textarea, #emailTemplate');
+        
+        if (emailSubject && !emailSubject.value) {
+            emailSubject.value = 'Mesaj important pentru tine, [NUME]!';
+        }
+        
+        if (emailTemplate && !emailTemplate.value) {
+            emailTemplate.value = `Salut, [NUME]!
+
+Sper că totul merge bine la tine.
+
+Scrie aici mesajul tău personalizat...
+
+[NUME], dacă ești interesat/ă, te rog să îmi răspunzi la acest email.
+
+Cu respect,
+Numele Tău`;
+        }
+        
+        // Încearcă să updateze preview
+        if (typeof updatePreview === 'function') {
+            updatePreview();
+        }
+        
+        // Încearcă să updateze UI-ul
+        if (typeof updateTemplateTabsUI === 'function') {
+            updateTemplateTabsUI();
+        }
+        
+        console.log('✅ Email templates section shown');
+        
+    } catch (error) {
+        console.error('❌ Error in showEmailTemplatesSection:', error);
+    }
+// Skip empty lines
+            
+            let email, nume;
+     
 // Șterge lista de emailuri
 function clearEmailList() {
     document.getElementById('emailListInput').value = '';
