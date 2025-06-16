@@ -244,22 +244,14 @@ function switchTab(tabName) {
     document.getElementById(tabName + 'Content').classList.add('active');
 }
 
-// Fix rapid pentru funcția processEmailList - ÎNLOCUIEȘTE doar această funcție în script.js
+// ÎNLOCUIEȘTE doar funcția processEmailList cu această versiune ultra-simplă
 
-// Procesează lista de emailuri introdusă manual
 function processEmailList() {
     console.log('🔄 Processing email list...');
     
     try {
         const emailListInput = document.getElementById('emailListInput');
-        if (!emailListInput) {
-            console.error('Element emailListInput not found');
-            alert('Nu găsesc zona de input pentru emailuri!');
-            return;
-        }
-        
         const emailListText = emailListInput.value.trim();
-        console.log('📝 Email list text:', emailListText);
         
         if (!emailListText) {
             alert('Te rog introduce lista de emailuri!');
@@ -268,73 +260,49 @@ function processEmailList() {
         
         emailData = [];
         const lines = emailListText.split('\n');
-        console.log('📋 Lines to process:', lines.length);
         
         for (let i = 0; i < lines.length; i++) {
             let line = lines[i].trim();
-            if (!line) continue; // Skip empty lines
+            if (!line) continue;
             
             let email, nume;
             
-            // Verifică dacă linia conține virgulă (email + nume)
             if (line.includes(',')) {
                 const parts = line.split(',');
                 email = parts[0].trim();
                 nume = parts[1].trim() || 'MANAGER';
             } else {
-                // Doar email, folosește MANAGER ca nume
                 email = line.trim();
                 nume = 'MANAGER';
             }
             
-            // Validează emailul
             if (isValidEmail(email)) {
                 emailData.push({
                     email: email,
                     nume: nume
                 });
-                console.log('✅ Added:', email, nume);
-            } else {
-                console.warn('❌ Invalid email ignored:', email);
             }
         }
-        
-        console.log('📊 Total emails processed:', emailData.length);
         
         if (emailData.length > 0) {
             dataSource = 'Listă introdusă manual';
             displayProcessedEmails();
-            showEmailTemplatesSection();
-        } else {
-            alert('Nu s-au găsit emailuri valide în lista introdusă!');
-        }
-        
-    } catch (error) {
-        console.error('❌ Error in processEmailList:', error);
-        alert('Eroare la procesarea listei: ' + error.message);
-    }
-}
-
-// Funcție helper pentru showEmailTemplatesSection dacă nu există
-function showEmailTemplatesSection() {
-    console.log('📧 Showing email templates section...');
-    
-    try {
-        const templateSection = document.getElementById('emailTemplatesSection');
-        if (templateSection) {
-            templateSection.style.display = 'block';
-        }
-        
-        // Inițializează template-uri default dacă nu există
-        const emailSubject = document.querySelector('.subject-input, #emailSubject');
-        const emailTemplate = document.querySelector('.template-textarea, #emailTemplate');
-        
-        if (emailSubject && !emailSubject.value) {
-            emailSubject.value = 'Mesaj important pentru tine, [NUME]!';
-        }
-        
-        if (emailTemplate && !emailTemplate.value) {
-            emailTemplate.value = `Salut, [NUME]!
+            
+            // Arată secțiunea de template SIMPLU
+            const templateSection = document.getElementById('templateSection');
+            if (templateSection) {
+                templateSection.style.display = 'block';
+                
+                // Set default values dacă sunt goale
+                const emailSubject = document.getElementById('emailSubject');
+                const emailTemplate = document.getElementById('emailTemplate');
+                
+                if (emailSubject && !emailSubject.value) {
+                    emailSubject.value = 'Mesaj important pentru tine, [NUME]!';
+                }
+                
+                if (emailTemplate && !emailTemplate.value) {
+                    emailTemplate.value = `Salut, [NUME]!
 
 Sper că totul merge bine la tine.
 
@@ -344,23 +312,28 @@ Scrie aici mesajul tău personalizat...
 
 Cu respect,
 Numele Tău`;
+                }
+                
+                // Încearcă să apeleze updatePreview dacă există
+                try {
+                    if (typeof updatePreview === 'function') {
+                        updatePreview();
+                    }
+                } catch (e) {
+                    console.log('updatePreview not available');
+                }
+            }
+            
+            console.log('✅ Email processing completed successfully');
+        } else {
+            alert('Nu s-au găsit emailuri valide în lista introdusă!');
         }
-        
-        // Încearcă să updateze preview
-        if (typeof updatePreview === 'function') {
-            updatePreview();
-        }
-        
-        // Încearcă să updateze UI-ul
-        if (typeof updateTemplateTabsUI === 'function') {
-            updateTemplateTabsUI();
-        }
-        
-        console.log('✅ Email templates section shown');
         
     } catch (error) {
-        console.error('❌ Error in showEmailTemplatesSection:', error);
+        console.error('❌ Error in processEmailList:', error);
+        alert('Eroare la procesarea listei: ' + error.message);
     }
+}
 // Skip empty lines
             
             let email, nume;
