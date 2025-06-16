@@ -22,6 +22,10 @@ let transporter;
 // Store pentru sesiunile de progres
 const progressSessions = new Map();
 
+// Store pentru campanii active și scheduled
+const activeCampaigns = new Map();
+const scheduledFollowUps = new Map();
+
 function createEmailTransporter() {
     transporter = nodemailer.createTransport({
         service: 'gmail',
@@ -40,8 +44,9 @@ app.get('/', (req, res) => {
 // Test route
 app.get('/test', (req, res) => {
     res.json({ 
-        message: 'Server funcționează perfect!',
-        emailConfigured: !!process.env.EMAIL_USER && !!process.env.EMAIL_PASS
+        message: 'Ultimate Email Automation Server ready!',
+        emailConfigured: !!process.env.EMAIL_USER && !!process.env.EMAIL_PASS,
+        features: ['follow-up-sequences', 'campaign-management', 'real-time-progress']
     });
 });
 
@@ -133,35 +138,29 @@ function sendProgressUpdate(sessionId, data) {
     });
 }
 
-// Route pentru trimiterea emailurilor cu progres în timp real
-app.post('/send-emails', async (req, res) => {
-    const sessionId = Date.now().toString(); // ID unic pentru sesiune
-    console.log('🚀 /send-emails route called! Session ID:', sessionId);
-    console.log('📧 Received body:', req.body);
+// Route pentru trimiterea unui pas din campanie
+app.post('/send-campaign-step', async (req, res) => {
+    const sessionId = Date.now().toString();
+    console.log('🚀 /send-campaign-step called! Session ID:', sessionId);
     
     try {
-        const { emailData, customSubject, customTemplate } = req.body;
-        console.log('📝 Email data extracted:', emailData);
-        console.log('📋 Custom subject:', customSubject);
-        console.log('📄 Custom template length:', customTemplate?.length);
+        const { campaignId, stepNumber, emailData, step } = req.body;
+        console.log(`📧 Processing step ${stepNumber} for campaign ${campaignId}`);
+        console.log(`📊 Email count: ${emailData.length}`);
         
         if (!emailData || !Array.isArray(emailData)) {
-            console.log('❌ Invalid email data');
             return res.status(400).json({
                 success: false,
                 message: 'Invalid email data'
             });
         }
         
-        if (!customSubject || !customTemplate) {
-            console.log('❌ Missing custom template or subject');
+        if (!step || !step.subject || !step.template) {
             return res.status(400).json({
                 success: false,
-                message: 'Custom subject and template are required'
+                message: 'Invalid step data'
             });
         }
-        
-        console.log(`📊 Processing ${emailData.length} emails with custom template and 4-second pause`);
         
         if (!transporter) {
             console.log('🔧 Creating email transporter...');
@@ -172,30 +171,32 @@ app.post('/send-emails', async (req, res) => {
         res.json({
             success: true,
             sessionId: sessionId,
-            message: 'Email sending started'
+            message: `Step ${stepNumber} sending started`
         });
 
-        // Procesează emailurile asincron și trimite progres în timp real
-        processEmailsWithProgress(sessionId, emailData, customSubject, customTemplate);
+        // Procesează emailurile asincron
+        processCampaignStepWithProgress(sessionId, campaignId, stepNumber, emailData, step);
         
     } catch (error) {
-        console.error('❌ Email sending error:', error);
+        console.error('❌ Campaign step error:', error);
         res.status(500).json({
             success: false,
-            message: 'Server error during email sending',
+            message: 'Server error during campaign step sending',
             error: error.message
         });
     }
 });
 
-// Funcție pentru procesarea emailurilor cu progres în timp real
-async function processEmailsWithProgress(sessionId, emailData, customSubject, customTemplate) {
+// Funcție pentru procesarea unui pas din campanie cu progres în timp real
+async function processCampaignStepWithProgress(sessionId, campaignId, stepNumber, emailData, step) {
     const results = {
         total: emailData.length,
         sent: 0,
         failed: 0,
         details: []
     };
+
+    console.log(`📊 Processing campaign step ${stepNumber} with ${emailData.length} emails`);
 
     // Trimite progres inițial
     sendProgressUpdate(sessionId, {
@@ -204,20 +205,26 @@ async function processEmailsWithProgress(sessionId, emailData, customSubject, cu
         processed: 0,
         sent: 0,
         failed: 0,
-        message: 'Începe trimiterea emailurilor cu pauză de 4 secunde...'
+        message: `Începe trimiterea pasului ${stepNumber} cu pauză de 4 secunde...`
     });
 
     // Trimite emailurile unul câte unul cu pauză de 4 secunde
     for (let i = 0; i < emailData.length; i++) {
         const contact = emailData[i];
-        console.log(`📤 Sending email ${i+1}/${emailData.length} to ${contact.email}`);
+        console.log(`📤 Sending step ${stepNumber} email ${i+1}/${emailData.length} to ${contact.email}`);
+        
+        // Check if this contact should be skipped (e.g., already responded)
+        if (shouldSkipContact(campaignId, contact.email, stepNumber)) {
+            console.log(`⏭️ Skipping ${contact.email} - already responded or unsubscribed`);
+            continue;
+        }
         
         try {
             // Personalizează template-ul și subject-ul cu numele
-            const personalizedSubject = customSubject.replace(/\[NUME\]/g, contact.nume);
-            const personalizedTemplate = customTemplate.replace(/\[NUME\]/g, contact.nume);
+            const personalizedSubject = step.subject.replace(/\[NUME\]/g, contact.nume);
+            const personalizedTemplate = step.template.replace(/\[NUME\]/g, contact.nume);
             
-            console.log(`📝 Personalized subject: ${personalizedSubject}`);
+            console.log(`📝 Step ${stepNumber} personalized subject: ${personalizedSubject}`);
             
             const mailOptions = {
                 from: `"${process.env.EMAIL_FROM_NAME}" <${process.env.EMAIL_USER}>`,
@@ -227,16 +234,21 @@ async function processEmailsWithProgress(sessionId, emailData, customSubject, cu
                 html: personalizedTemplate.replace(/\n/g, '<br>')
             };
             
-            console.log(`📨 Attempting to send email to ${contact.email}...`);
+            console.log(`📨 Attempting to send step ${stepNumber} email to ${contact.email}...`);
             await transporter.sendMail(mailOptions);
-            console.log(`✅ Email sent successfully to ${contact.email}`);
+            console.log(`✅ Step ${stepNumber} email sent successfully to ${contact.email}`);
             
             results.sent++;
             results.details.push({
                 email: contact.email,
                 name: contact.nume,
-                status: 'sent'
+                step: stepNumber,
+                status: 'sent',
+                sentAt: new Date().toISOString()
             });
+
+            // Track sent email for response detection
+            trackSentEmail(campaignId, contact.email, stepNumber);
 
             // Trimite progres în timp real
             sendProgressUpdate(sessionId, {
@@ -247,18 +259,21 @@ async function processEmailsWithProgress(sessionId, emailData, customSubject, cu
                 failed: results.failed,
                 currentEmail: contact.email,
                 currentName: contact.nume,
+                step: stepNumber,
                 status: 'sent',
-                message: `Email trimis cu succes către ${contact.email} (${contact.nume})`
+                message: `Step ${stepNumber}: Email trimis cu succes către ${contact.email} (${contact.nume})`
             });
             
         } catch (error) {
-            console.log(`❌ Failed to send email to ${contact.email}:`, error.message);
+            console.log(`❌ Failed to send step ${stepNumber} email to ${contact.email}:`, error.message);
             results.failed++;
             results.details.push({
                 email: contact.email,
                 name: contact.nume,
+                step: stepNumber,
                 status: 'failed',
-                error: error.message
+                error: error.message,
+                failedAt: new Date().toISOString()
             });
 
             // Trimite progres pentru eroare
@@ -270,13 +285,14 @@ async function processEmailsWithProgress(sessionId, emailData, customSubject, cu
                 failed: results.failed,
                 currentEmail: contact.email,
                 currentName: contact.nume,
+                step: stepNumber,
                 status: 'failed',
-                message: `Eșuat: ${contact.email} - ${error.message}`,
+                message: `Step ${stepNumber}: Eșuat ${contact.email} - ${error.message}`,
                 error: error.message
             });
         }
 
-        // ⏱️ PAUZĂ DE 4 SECUNDE între emailuri (redus de la 10 secunde)
+        // ⏱️ PAUZĂ DE 4 SECUNDE între emailuri
         if (i < emailData.length - 1) {
             console.log(`⏱️ Waiting 4 seconds before next email...`);
             
@@ -287,11 +303,11 @@ async function processEmailsWithProgress(sessionId, emailData, customSubject, cu
                 waitTime: 4
             });
             
-            await new Promise(resolve => setTimeout(resolve, 4000)); // 4 secunde în loc de 10
+            await new Promise(resolve => setTimeout(resolve, 4000));
         }
     }
     
-    console.log(`🎉 Email sending completed. Sent: ${results.sent}, Failed: ${results.failed}`);
+    console.log(`🎉 Campaign step ${stepNumber} completed. Sent: ${results.sent}, Failed: ${results.failed}`);
     
     // Trimite rezultatul final
     sendProgressUpdate(sessionId, {
@@ -299,8 +315,9 @@ async function processEmailsWithProgress(sessionId, emailData, customSubject, cu
         total: emailData.length,
         sent: results.sent,
         failed: results.failed,
+        step: stepNumber,
         results: results,
-        message: `Trimitere completă! ${results.sent}/${results.total} emailuri trimise cu succes.`
+        message: `Step ${stepNumber} completat! ${results.sent}/${results.total} emailuri trimise cu succes.`
     });
 
     // Cleanup sesiunea după 1 minut
@@ -310,14 +327,40 @@ async function processEmailsWithProgress(sessionId, emailData, customSubject, cu
     }, 60000);
 }
 
+// Helper functions for campaign management
+function shouldSkipContact(campaignId, email, stepNumber) {
+    // În viitor, aici vom verifica dacă contactul a răspuns sau s-a dezabonat
+    // Pentru acum, returnăm false (nu sărim pe nimeni)
+    return false;
+}
+
+function trackSentEmail(campaignId, email, stepNumber) {
+    // În viitor, aici vom salva informații despre emailurile trimise
+    // pentru response detection și unsubscribe handling
+    console.log(`📝 Tracking sent email: ${email} - Campaign: ${campaignId} - Step: ${stepNumber}`);
+}
+
+// Route pentru gestionarea răspunsurilor (placeholder pentru viitor)
+app.post('/handle-response', (req, res) => {
+    // Aici vom implementa detectarea răspunsurilor în viitor
+    res.json({ message: 'Response handling not implemented yet' });
+});
+
+// Route pentru unsubscribe (placeholder pentru viitor)
+app.get('/unsubscribe/:campaignId/:email', (req, res) => {
+    // Aici vom implementa unsubscribe handling în viitor
+    res.send('Unsubscribe functionality will be implemented in future versions.');
+});
+
 // Pornește serverul
 app.listen(PORT, () => {
-    console.log(`🚀 Server pornit pe http://localhost:${PORT}`);
-    console.log(`📧 Universal Email Automation ready!`);
-    console.log(`⏱️ Email sending with 4-second pause between sends (optimized!)`);
-    console.log(`✨ Now supports custom templates for any niche!`);
-    console.log(`📡 Real-time progress with Server-Sent Events!`);
-    console.log(`📝 Direct email list input + CSV file upload options!`);
+    console.log(`🚀 Ultimate Email Automation Server running on http://localhost:${PORT}`);
+    console.log(`📧 Ultimate Email Automation with Follow-up Sequences ready!`);
+    console.log(`⏱️ Email sending with 4-second pause between sends`);
+    console.log(`🔄 Follow-up sequences with smart timing`);
+    console.log(`📊 Campaign management and template library`);
+    console.log(`📡 Real-time progress with Server-Sent Events`);
+    console.log(`💾 Campaign storage and export functionality`);
     
     // Verifică configurația email la pornire
     if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
