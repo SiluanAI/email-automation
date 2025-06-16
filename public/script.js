@@ -1289,4 +1289,125 @@ window.onclick = function(event) {
     if (event.target === templateModal) {
         closeTemplateLibrary();
     }
+    // ADAUGĂ aceste funcții la sfârșitul fișierului script.js (înainte de ultima acoladă)
+
+// Procesează lista de emailuri introdusă manual
+function processEmailList() {
+    console.log('🔄 Processing email list...');
+    
+    const emailListInput = document.getElementById('emailListInput');
+    if (!emailListInput) {
+        alert('Nu găsesc zona de input!');
+        return;
+    }
+    
+    const emailListText = emailListInput.value.trim();
+    
+    if (!emailListText) {
+        alert('Te rog introduce lista de emailuri!');
+        return;
+    }
+    
+    emailData = [];
+    const lines = emailListText.split('\n');
+    
+    for (let line of lines) {
+        line = line.trim();
+        if (!line) continue;
+        
+        let email, nume;
+        
+        if (line.includes(',')) {
+            const parts = line.split(',');
+            email = parts[0].trim();
+            nume = parts[1].trim() || 'MANAGER';
+        } else {
+            email = line.trim();
+            nume = 'MANAGER';
+        }
+        
+        if (isValidEmail(email)) {
+            emailData.push({
+                email: email,
+                nume: nume
+            });
+        }
+    }
+    
+    if (emailData.length > 0) {
+        dataSource = 'Listă introdusă manual';
+        displayProcessedEmails();
+        
+        // Arată secțiunea de template
+        const templateSection = document.getElementById('templateSection');
+        if (templateSection) {
+            templateSection.style.display = 'block';
+        }
+        
+        alert('✅ Am procesat ' + emailData.length + ' emailuri!');
+    } else {
+        alert('Nu s-au găsit emailuri valide!');
+    }
+}
+
+// Șterge lista de emailuri
+function clearEmailList() {
+    const emailListInput = document.getElementById('emailListInput');
+    if (emailListInput) {
+        emailListInput.value = '';
+    }
+    
+    emailData = [];
+    
+    // Ascunde secțiunile
+    const sections = ['fileInfo', 'templateSection', 'previewSection', 'actionSection'];
+    sections.forEach(sectionId => {
+        const element = document.getElementById(sectionId);
+        if (element) {
+            element.style.display = 'none';
+        }
+    });
+    
+    alert('✅ Lista a fost ștearsă!');
+}
+
+// Funcția displayProcessedEmails dacă nu există
+function displayProcessedEmails() {
+    const emailCountElement = document.getElementById('emailCount');
+    const dataSourceElement = document.getElementById('dataSource');
+    const fileInfoElement = document.getElementById('fileInfo');
+    const previewDataElement = document.getElementById('previewData');
+    
+    if (emailCountElement) {
+        emailCountElement.textContent = emailData.length;
+    }
+    
+    if (dataSourceElement) {
+        dataSourceElement.textContent = dataSource;
+    }
+    
+    if (previewDataElement) {
+        let previewHTML = '<h4>📋 Preview emailuri:</h4>';
+        
+        for (let i = 0; i < Math.min(10, emailData.length); i++) {
+            const item = emailData[i];
+            previewHTML += `
+                <div class="email-preview-item">
+                    <span class="email">${item.email}</span>
+                    <span class="name">${item.nume}</span>
+                </div>
+            `;
+        }
+        
+        if (emailData.length > 10) {
+            previewHTML += `<p>... și încă ${emailData.length - 10} emailuri</p>`;
+        }
+        
+        previewDataElement.innerHTML = previewHTML;
+    }
+    
+    if (fileInfoElement) {
+        fileInfoElement.style.display = 'block';
+    }
+}
 };
