@@ -244,96 +244,7 @@ function switchTab(tabName) {
     document.getElementById(tabName + 'Content').classList.add('active');
 }
 
-// ÎNLOCUIEȘTE doar funcția processEmailList cu această versiune ultra-simplă
 
-function processEmailList() {
-    console.log('🔄 Processing email list...');
-    
-    try {
-        const emailListInput = document.getElementById('emailListInput');
-        const emailListText = emailListInput.value.trim();
-        
-        if (!emailListText) {
-            alert('Te rog introduce lista de emailuri!');
-            return;
-        }
-        
-        emailData = [];
-        const lines = emailListText.split('\n');
-        
-        for (let i = 0; i < lines.length; i++) {
-            let line = lines[i].trim();
-            if (!line) continue;
-            
-            let email, nume;
-            
-            if (line.includes(',')) {
-                const parts = line.split(',');
-                email = parts[0].trim();
-                nume = parts[1].trim() || 'MANAGER';
-            } else {
-                email = line.trim();
-                nume = 'MANAGER';
-            }
-            
-            if (isValidEmail(email)) {
-                emailData.push({
-                    email: email,
-                    nume: nume
-                });
-            }
-        }
-        
-        if (emailData.length > 0) {
-            dataSource = 'Listă introdusă manual';
-            displayProcessedEmails();
-            
-            // Arată secțiunea de template SIMPLU
-            const templateSection = document.getElementById('templateSection');
-            if (templateSection) {
-                templateSection.style.display = 'block';
-                
-                // Set default values dacă sunt goale
-                const emailSubject = document.getElementById('emailSubject');
-                const emailTemplate = document.getElementById('emailTemplate');
-                
-                if (emailSubject && !emailSubject.value) {
-                    emailSubject.value = 'Mesaj important pentru tine, [NUME]!';
-                }
-                
-                if (emailTemplate && !emailTemplate.value) {
-                    emailTemplate.value = `Salut, [NUME]!
-
-Sper că totul merge bine la tine.
-
-Scrie aici mesajul tău personalizat...
-
-[NUME], dacă ești interesat/ă, te rog să îmi răspunzi la acest email.
-
-Cu respect,
-Numele Tău`;
-                }
-                
-                // Încearcă să apeleze updatePreview dacă există
-                try {
-                    if (typeof updatePreview === 'function') {
-                        updatePreview();
-                    }
-                } catch (e) {
-                    console.log('updatePreview not available');
-                }
-            }
-            
-            console.log('✅ Email processing completed successfully');
-        } else {
-            alert('Nu s-au găsit emailuri valide în lista introdusă!');
-        }
-        
-    } catch (error) {
-        console.error('❌ Error in processEmailList:', error);
-        alert('Eroare la procesarea listei: ' + error.message);
-    }
-}
 // Skip empty lines
             
             let email, nume;
@@ -1409,5 +1320,421 @@ function displayProcessedEmails() {
     if (fileInfoElement) {
         fileInfoElement.style.display = 'block';
     }
+}
+// ÎNLOCUIEȘTE funcția processEmailList cu această versiune completă
+
+function processEmailList() {
+    console.log('🔄 Processing email list...');
+    
+    const emailListInput = document.getElementById('emailListInput');
+    if (!emailListInput) {
+        alert('Nu găsesc zona de input!');
+        return;
+    }
+    
+    const emailListText = emailListInput.value.trim();
+    
+    if (!emailListText) {
+        alert('Te rog introduce lista de emailuri!');
+        return;
+    }
+    
+    emailData = [];
+    const lines = emailListText.split('\n');
+    
+    for (let line of lines) {
+        line = line.trim();
+        if (!line) continue;
+        
+        let email, nume;
+        
+        if (line.includes(',')) {
+            const parts = line.split(',');
+            email = parts[0].trim();
+            nume = parts[1].trim() || 'MANAGER';
+        } else {
+            email = line.trim();
+            nume = 'MANAGER';
+        }
+        
+        if (isValidEmail(email)) {
+            emailData.push({
+                email: email,
+                nume: nume
+            });
+        }
+    }
+    
+    if (emailData.length > 0) {
+        dataSource = 'Listă introdusă manual';
+        displayProcessedEmails();
+        showTemplateSection();
+        
+        console.log('✅ Am procesat ' + emailData.length + ' emailuri!');
+    } else {
+        alert('Nu s-au găsit emailuri valide!');
+    }
+}
+
+// Funcție pentru afișarea secțiunii de template
+function showTemplateSection() {
+    // Arată secțiunea de template
+    const templateSection = document.getElementById('templateSection');
+    if (templateSection) {
+        templateSection.style.display = 'block';
+    }
+    
+    // Set default template dacă nu există
+    const emailTemplate = document.getElementById('emailTemplate');
+    const emailSubject = document.getElementById('emailSubject');
+    
+    if (emailSubject && !emailSubject.value) {
+        emailSubject.value = 'Mesaj important pentru tine, [NUME]!';
+    }
+    
+    if (emailTemplate && !emailTemplate.value) {
+        emailTemplate.value = `Salut, [NUME]!
+
+Sper că totul merge bine la tine.
+
+Scrie aici mesajul tău personalizat...
+
+[NUME], dacă ești interesat/ă, te rog să îmi răspunzi la acest email.
+
+Cu respect,
+Numele Tău`;
+    }
+    
+    // Adaugă event listeners pentru template editing
+    if (emailSubject) {
+        emailSubject.addEventListener('input', updatePreview);
+    }
+    if (emailTemplate) {
+        emailTemplate.addEventListener('input', updatePreview);
+    }
+    
+    // Arată preview și actions
+    updatePreview();
+}
+
+// Funcție pentru actualizarea preview-ului
+function updatePreview() {
+    const emailSubject = document.getElementById('emailSubject');
+    const emailTemplate = document.getElementById('emailTemplate');
+    
+    if (!emailSubject || !emailTemplate) return;
+    
+    const subject = emailSubject.value;
+    const template = emailTemplate.value;
+    
+    if (subject && template && emailData.length > 0) {
+        // Afișează preview cu exemplu
+        const sampleName = emailData[0].nume;
+        const previewSubject = subject.replace(/\[NUME\]/g, sampleName);
+        const previewContent = template.replace(/\[NUME\]/g, sampleName);
+        
+        // Creează preview section dacă nu există
+        let previewSection = document.getElementById('previewSection');
+        if (!previewSection) {
+            previewSection = document.createElement('div');
+            previewSection.id = 'previewSection';
+            previewSection.className = 'preview-section';
+            
+            const templateSection = document.getElementById('templateSection');
+            if (templateSection) {
+                templateSection.parentNode.insertBefore(previewSection, templateSection.nextSibling);
+            }
+        }
+        
+        previewSection.innerHTML = `
+            <h2>👀 Preview email</h2>
+            <div class="preview-card">
+                <div class="preview-header">
+                    <strong>Subject:</strong> ${previewSubject}
+                </div>
+                <div class="preview-content">${previewContent}</div>
+                <div class="preview-note">
+                    <small>Nota: [NUME] va fi înlocuit automat cu numele real pentru fiecare destinatar</small>
+                </div>
+            </div>
+        `;
+        previewSection.style.display = 'block';
+        
+        // Arată secțiunea de acțiuni
+        showActionSection();
+    }
+}
+
+// Funcție pentru afișarea secțiunii de acțiuni
+function showActionSection() {
+    let actionSection = document.getElementById('actionSection');
+    if (!actionSection) {
+        actionSection = document.createElement('div');
+        actionSection.id = 'actionSection';
+        actionSection.className = 'action-section';
+        
+        const previewSection = document.getElementById('previewSection');
+        if (previewSection) {
+            previewSection.parentNode.insertBefore(actionSection, previewSection.nextSibling);
+        }
+    }
+    
+    actionSection.innerHTML = `
+        <button class="send-btn" onclick="startEmailSending()">
+            <span class="btn-icon">🚀</span>
+            Trimite toate emailurile
+        </button>
+        <p class="timing-info">⏱️ Pauză de 4 secunde între emailuri pentru protecție anti-spam</p>
+    `;
+    actionSection.style.display = 'block';
+}
+
+// Funcție pentru începerea trimiterii emailurilor
+async function startEmailSending() {
+    const emailSubject = document.getElementById('emailSubject');
+    const emailTemplate = document.getElementById('emailTemplate');
+    
+    if (!emailSubject.value || !emailTemplate.value) {
+        alert('Te rog completează subject-ul și template-ul emailului!');
+        return;
+    }
+    
+    // Salvează template-urile
+    customSubject = emailSubject.value;
+    customTemplate = emailTemplate.value;
+    
+    // Ascunde butonul și arată progresul
+    document.getElementById('actionSection').style.display = 'none';
+    showProgressSection();
+    
+    try {
+        console.log('📡 Sending request to server...');
+        
+        // Trimite request către server
+        const response = await fetch('/send-emails', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                emailData: emailData,
+                customSubject: customSubject,
+                customTemplate: customTemplate
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success && result.sessionId) {
+            startProgressListener(result.sessionId);
+        } else {
+            alert('❌ Eroare: ' + result.message);
+        }
+        
+    } catch (error) {
+        console.error('Eroare la trimiterea emailurilor:', error);
+        alert('❌ Eroare de conectare: ' + error.message);
+    }
+}
+
+// Funcție pentru afișarea secțiunii de progres
+function showProgressSection() {
+    let progressSection = document.getElementById('progressSection');
+    if (!progressSection) {
+        progressSection = document.createElement('div');
+        progressSection.id = 'progressSection';
+        progressSection.className = 'progress-section';
+        
+        const actionSection = document.getElementById('actionSection');
+        if (actionSection) {
+            actionSection.parentNode.insertBefore(progressSection, actionSection.nextSibling);
+        }
+    }
+    
+    progressSection.innerHTML = `
+        <h2>📊 Progres trimitere</h2>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+            <span class="progress-text" id="progressText">0%</span>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="totalEmails">0</div>
+                <div class="stat-label">Total emailuri</div>
+            </div>
+            <div class="stat-card success">
+                <div class="stat-number" id="sentEmails">0</div>
+                <div class="stat-label">Trimise cu succes</div>
+            </div>
+            <div class="stat-card error">
+                <div class="stat-number" id="failedEmails">0</div>
+                <div class="stat-label">Eșuate</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="peopleReached">0</div>
+                <div class="stat-label">Persoane atinse</div>
+            </div>
+        </div>
+
+        <div class="log-section">
+            <h3>📝 Log activitate</h3>
+            <div class="log-container" id="logContainer">
+                <!-- Log entries will appear here -->
+            </div>
+        </div>
+    `;
+    progressSection.style.display = 'block';
+    
+    // Inițializează progresul
+    updateProgress(0, emailData.length, 0, 0);
+    addLogEntry('🚀 Începe trimiterea emailurilor cu pauză de 4 secunde...', 'info');
+}
+
+// Adaugă și funcțiile helper dacă nu există
+function updateProgress(processed, total, sent, failed) {
+    const percentage = Math.round((processed / total) * 100);
+    
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+    
+    if (progressFill && progressText) {
+        progressFill.style.width = percentage + '%';
+        progressText.textContent = percentage + '%';
+    }
+    
+    const totalElement = document.getElementById('totalEmails');
+    const sentElement = document.getElementById('sentEmails');
+    const failedElement = document.getElementById('failedEmails');
+    const reachedElement = document.getElementById('peopleReached');
+    
+    if (totalElement) totalElement.textContent = total;
+    if (sentElement) sentElement.textContent = sent;
+    if (failedElement) failedElement.textContent = failed;
+    if (reachedElement) reachedElement.textContent = sent;
+}
+
+function addLogEntry(message, type = 'info') {
+    const logContainer = document.getElementById('logContainer');
+    if (logContainer) {
+        const entry = document.createElement('div');
+        entry.className = `log-entry ${type}`;
+        entry.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
+        
+        logContainer.appendChild(entry);
+        logContainer.scrollTop = logContainer.scrollHeight;
+    }
+}
+
+function startProgressListener(sessionId) {
+    if (eventSource) {
+        eventSource.close();
+    }
+    
+    eventSource = new EventSource(`/progress/${sessionId}`);
+    
+    eventSource.onmessage = function(event) {
+        try {
+            const data = JSON.parse(event.data);
+            
+            switch (data.type) {
+                case 'start':
+                    updateProgress(0, data.total, 0, 0);
+                    addLogEntry(data.message, 'info');
+                    break;
+                    
+                case 'progress':
+                    updateProgress(data.processed, data.total, data.sent, data.failed);
+                    
+                    if (data.status === 'sent') {
+                        addLogEntry(`✅ ${data.message}`, 'success');
+                    } else if (data.status === 'failed') {
+                        addLogEntry(`❌ ${data.message}`, 'error');
+                    }
+                    break;
+                    
+                case 'waiting':
+                    addLogEntry(`⏱️ ${data.message}`, 'info');
+                    break;
+                    
+                case 'complete':
+                    updateProgress(data.total, data.total, data.sent, data.failed);
+                    addLogEntry(`🎉 ${data.message}`, 'success');
+                    
+                    setTimeout(() => {
+                        showFinalResults(data.results);
+                        eventSource.close();
+                    }, 1000);
+                    break;
+                    
+                case 'ping':
+                    break;
+            }
+        } catch (error) {
+            console.error('Error parsing progress data:', error);
+        }
+    };
+    
+    eventSource.onerror = function(error) {
+        console.error('SSE Error:', error);
+        addLogEntry('❌ Conexiune întreruptă cu serverul', 'error');
+        eventSource.close();
+    };
+}
+
+function showFinalResults(results) {
+    const successRate = Math.round((results.sent / results.total) * 100);
+    
+    let resultsSection = document.getElementById('resultsSection');
+    if (!resultsSection) {
+        resultsSection = document.createElement('div');
+        resultsSection.id = 'resultsSection';
+        resultsSection.className = 'results-section';
+        
+        const progressSection = document.getElementById('progressSection');
+        if (progressSection) {
+            progressSection.parentNode.insertBefore(resultsSection, progressSection.nextSibling);
+        }
+    }
+    
+    resultsSection.innerHTML = `
+        <h2>✅ Trimitere completă!</h2>
+        <div class="final-stats">
+            <h3>📊 Rezultate finale</h3>
+            <p><strong>Total emailuri:</strong> ${results.total}</p>
+            <p><strong>Trimise cu succes:</strong> ${results.sent}</p>
+            <p><strong>Eșuate:</strong> ${results.failed}</p>
+            <p><strong>Rata de succes:</strong> ${successRate}%</p>
+            <p><strong>Persoane atinse:</strong> ${results.sent}</p>
+        </div>
+        <button class="reset-btn" onclick="resetApp()">Începe din nou</button>
+    `;
+    
+    document.getElementById('progressSection').style.display = 'none';
+    resultsSection.style.display = 'block';
+}
+
+function resetApp() {
+    emailData = [];
+    customTemplate = '';
+    customSubject = '';
+    dataSource = '';
+    
+    if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+    }
+    
+    const sections = ['fileInfo', 'templateSection', 'previewSection', 'actionSection', 'progressSection', 'resultsSection'];
+    sections.forEach(sectionId => {
+        const element = document.getElementById(sectionId);
+        if (element) element.style.display = 'none';
+    });
+    
+    const emailListInput = document.getElementById('emailListInput');
+    if (emailListInput) emailListInput.value = '';
+    
+    console.log('🔄 App reset');
 }
 };
