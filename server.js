@@ -142,7 +142,7 @@ app.post('/send-emails', async (req, res) => {
             });
         }
         
-        console.log(`📊 Processing ${emailData.length} emails`);
+        console.log(`📊 Processing ${emailData.length} emails with 10-second pause between sends`);
         
         if (!transporter) {
             console.log('🔧 Creating email transporter...');
@@ -156,7 +156,7 @@ app.post('/send-emails', async (req, res) => {
             details: []
         };
         
-        // Trimite emailurile unul câte unul
+        // Trimite emailurile unul câte unul cu pauză de 10 secunde
         for (let i = 0; i < emailData.length; i++) {
             const contact = emailData[i];
             console.log(`📤 Sending email ${i+1}/${emailData.length} to ${contact.email}`);
@@ -184,8 +184,11 @@ app.post('/send-emails', async (req, res) => {
                     status: 'sent'
                 });
                 
-                // Pauză scurtă între emailuri pentru a evita spam detection
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                // ⏱️ PAUZĂ DE 10 SECUNDE între emailuri pentru a evita Gmail rate limiting
+                if (i < emailData.length - 1) { // Nu pune pauză după ultimul email
+                    console.log(`⏱️ Waiting 10 seconds before next email...`);
+                    await new Promise(resolve => setTimeout(resolve, 10000));
+                }
                 
             } catch (error) {
                 console.log(`❌ Failed to send email to ${contact.email}:`, error.message);
@@ -197,6 +200,12 @@ app.post('/send-emails', async (req, res) => {
                     status: 'failed',
                     error: error.message
                 });
+                
+                // Pauză și în caz de eroare pentru a nu bombarda Gmail
+                if (i < emailData.length - 1) {
+                    console.log(`⏱️ Waiting 10 seconds after error before next attempt...`);
+                    await new Promise(resolve => setTimeout(resolve, 10000));
+                }
             }
         }
         
@@ -221,6 +230,7 @@ app.post('/send-emails', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`🚀 Server pornit pe http://localhost:${PORT}`);
     console.log(`📧 Email Automation ready!`);
+    console.log(`⏱️ Email sending with 10-second pause between sends`);
     
     // Verifică configurația email la pornire
     if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
