@@ -29,59 +29,6 @@ function createEmailTransporter() {
     });
 }
 
-// Template-urile pentru emailuri
-const emailTemplates = {
-    en: (name) => ({
-        subject: '🚛 Free Tool for Dispatchers - Excel Reports from PDFs',
-        html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>Hey, ${name}! 👋</h2>
-            <p>I'm testing a tool that helps truck dispatchers automatically turn client orders in PDF format into clean Excel reports.</p>
-            
-            <p>You can use the Excel however you want — for internal tracking, reports, organizing loads, etc.</p>
-            
-            <p><strong>It's still in demo, and I'm offering it 100% free to 5 dispatchers</strong> in exchange for a short testimonial or honest feedback.</p>
-            
-            <p>The data extraction isn't perfect yet, but I'll make sure everything is clean and correct for you.</p>
-            
-            <p>It's fast, web-based, and you can review or edit the data before using it.</p>
-            
-            <p>Would you be open to trying it out? No strings — just real feedback from dispatchers. 🚛📊</p>
-            
-            <hr style="margin: 20px 0;">
-            <p style="font-size: 12px; color: #666;">
-                If you're not interested, no worries! Just ignore this email.
-            </p>
-        </div>
-        `
-    }),
-    
-    ro: (name) => ({
-        subject: '🚛 Tool Gratuit pentru Dispeceri - Rapoarte Excel din PDF-uri',
-        html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>Salut, ${name}! 👋</h2>
-            <p>Testez un tool care ajută dispecerii de transport să transforme comenzile primite în PDF în fișiere Excel clare — automat.</p>
-            
-            <p>Poate fi folosit pentru raport intern, evidență comenzi, organizare sau orice ai nevoie.</p>
-            
-            <p><strong>Este în fază demo și caut 5 dispeceri care vor să-l încerce gratuit</strong>, în schimbul unui testimonial scurt.</p>
-            
-            <p>Extracția nu e 100% perfectă, dar mă ocup personal să fie totul corect pentru tine.</p>
-            
-            <p>Platforma e online, rapidă, iar datele pot fi verificate/editate înainte de salvare.</p>
-            
-            <p>Vrei să-l încerci? E complet gratuit — tot ce cer e feedback sincer. 🚛📊</p>
-            
-            <hr style="margin: 20px 0;">
-            <p style="font-size: 12px; color: #666;">
-                Dacă nu ești interessat, nu-i problemă! Ignoră acest email.
-            </p>
-        </div>
-        `
-    })
-};
-
 // Route pentru pagina principală
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -131,8 +78,10 @@ app.post('/send-emails', async (req, res) => {
     console.log('📧 Received body:', req.body);
     
     try {
-        const { emailData } = req.body;
+        const { emailData, customSubject, customTemplate } = req.body;
         console.log('📝 Email data extracted:', emailData);
+        console.log('📋 Custom subject:', customSubject);
+        console.log('📄 Custom template:', customTemplate);
         
         if (!emailData || !Array.isArray(emailData)) {
             console.log('❌ Invalid email data');
@@ -142,7 +91,15 @@ app.post('/send-emails', async (req, res) => {
             });
         }
         
-        console.log(`📊 Processing ${emailData.length} emails with 10-second pause between sends`);
+        if (!customSubject || !customTemplate) {
+            console.log('❌ Missing custom template or subject');
+            return res.status(400).json({
+                success: false,
+                message: 'Custom subject and template are required'
+            });
+        }
+        
+        console.log(`📊 Processing ${emailData.length} emails with custom template and 10-second pause`);
         
         if (!transporter) {
             console.log('🔧 Creating email transporter...');
@@ -162,14 +119,18 @@ app.post('/send-emails', async (req, res) => {
             console.log(`📤 Sending email ${i+1}/${emailData.length} to ${contact.email}`);
             
             try {
-                const template = emailTemplates[contact.language](contact.nume);
-                console.log(`📝 Template created for ${contact.language}`);
+                // Personalizează template-ul și subject-ul cu numele
+                const personalizedSubject = customSubject.replace(/\[NUME\]/g, contact.nume);
+                const personalizedTemplate = customTemplate.replace(/\[NUME\]/g, contact.nume);
+                
+                console.log(`📝 Personalized subject: ${personalizedSubject}`);
                 
                 const mailOptions = {
                     from: `"${process.env.EMAIL_FROM_NAME}" <${process.env.EMAIL_USER}>`,
                     to: contact.email,
-                    subject: template.subject,
-                    html: template.html
+                    subject: personalizedSubject,
+                    text: personalizedTemplate,
+                    html: personalizedTemplate.replace(/\n/g, '<br>')
                 };
                 
                 console.log(`📨 Attempting to send email to ${contact.email}...`);
@@ -180,7 +141,6 @@ app.post('/send-emails', async (req, res) => {
                 results.details.push({
                     email: contact.email,
                     name: contact.nume,
-                    language: contact.language,
                     status: 'sent'
                 });
                 
@@ -196,7 +156,6 @@ app.post('/send-emails', async (req, res) => {
                 results.details.push({
                     email: contact.email,
                     name: contact.nume,
-                    language: contact.language,
                     status: 'failed',
                     error: error.message
                 });
@@ -229,8 +188,9 @@ app.post('/send-emails', async (req, res) => {
 // Pornește serverul
 app.listen(PORT, () => {
     console.log(`🚀 Server pornit pe http://localhost:${PORT}`);
-    console.log(`📧 Email Automation ready!`);
+    console.log(`📧 Universal Email Automation ready!`);
     console.log(`⏱️ Email sending with 10-second pause between sends`);
+    console.log(`✨ Now supports custom templates for any niche!`);
     
     // Verifică configurația email la pornire
     if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {

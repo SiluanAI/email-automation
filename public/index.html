@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Email Automation - Dispatcher Tool</title>
+    <title>Email Automation - Universal Tool</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>🚛 Email Automation - Dispatcher Tool</h1>
-            <p>Trimite emailuri automat pentru feedback și testimonials</p>
+            <h1>📧 Email Automation - Universal Tool</h1>
+            <p>Trimite emailuri personalizate automat pentru orice nișă</p>
         </header>
 
         <div class="upload-section">
@@ -33,16 +33,43 @@
             </div>
         </div>
 
+        <div class="template-section" id="templateSection" style="display: none;">
+            <h2>✍️ Scrie template-ul emailului</h2>
+            
+            <div class="form-group">
+                <label for="emailSubject">Subject (titlul emailului):</label>
+                <input type="text" id="emailSubject" placeholder="Ex: Ofertă specială pentru tine, [NUME]!" class="subject-input">
+                <small>Poți folosi [NUME] pentru personalizare</small>
+            </div>
+
+            <div class="form-group">
+                <label for="emailTemplate">Conținutul emailului:</label>
+                <textarea id="emailTemplate" placeholder="Salut, [NUME]!
+
+Scrie aici mesajul tău personalizat...
+
+Poți folosi [NUME] oriunde pentru a personaliza emailul cu numele fiecărei persoane.
+
+Exemplu:
+- Salut, [NUME]! 
+- Bună ziua, domnule/doamna [NUME]
+- Hey [NUME], cum merge treaba?
+
+Cu respect,
+Numele Tău" class="template-textarea"></textarea>
+                <small>Folosește [NUME] pentru a înlocui automat cu numele din CSV</small>
+            </div>
+        </div>
+
         <div class="preview-section" id="previewSection" style="display: none;">
-            <h2>👀 Preview emailuri</h2>
-            <div class="email-templates">
-                <div class="template-card">
-                    <h3>🇺🇸 Template Engleză</h3>
-                    <div class="template-content" id="englishTemplate"></div>
+            <h2>👀 Preview email</h2>
+            <div class="preview-card">
+                <div class="preview-header">
+                    <strong>Subject:</strong> <span id="previewSubject"></span>
                 </div>
-                <div class="template-card">
-                    <h3>🇷🇴 Template Română</h3>
-                    <div class="template-content" id="romanianTemplate"></div>
+                <div class="preview-content" id="previewContent"></div>
+                <div class="preview-note">
+                    <small>Nota: [NUME] va fi înlocuit automat cu numele real din CSV pentru fiecare destinatar</small>
                 </div>
             </div>
         </div>

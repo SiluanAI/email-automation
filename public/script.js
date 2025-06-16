@@ -1,6 +1,8 @@
 // Variables globale
 let emailData = [];
 let uploadedFileName = '';
+let customTemplate = '';
+let customSubject = '';
 
 // Inițializare când pagina se încarcă
 document.addEventListener('DOMContentLoaded', function() {
@@ -10,6 +12,8 @@ document.addEventListener('DOMContentLoaded', function() {
 function initializeApp() {
     const csvFileInput = document.getElementById('csvFile');
     const uploadArea = document.getElementById('uploadArea');
+    const emailSubject = document.getElementById('emailSubject');
+    const emailTemplate = document.getElementById('emailTemplate');
     
     // Event listeners pentru upload
     csvFileInput.addEventListener('change', handleFileSelect);
@@ -18,6 +22,10 @@ function initializeApp() {
     uploadArea.addEventListener('dragover', handleDragOver);
     uploadArea.addEventListener('dragleave', handleDragLeave);
     uploadArea.addEventListener('drop', handleFileDrop);
+    
+    // Event listeners pentru template editing
+    emailSubject.addEventListener('input', updatePreview);
+    emailTemplate.addEventListener('input', updatePreview);
     
     console.log('✅ App initialized successfully!');
 }
@@ -98,8 +106,7 @@ function parseCSVData(csvText) {
                 if (isValidEmail(email) && nume) {
                     emailData.push({
                         email: email,
-                        nume: nume,
-                        language: detectLanguage(email)
+                        nume: nume
                     });
                 }
             }
@@ -107,7 +114,7 @@ function parseCSVData(csvText) {
         
         if (emailData.length > 0) {
             displayFileInfo();
-            showPreviewSection();
+            showTemplateSection();
         } else {
             alert('Nu s-au găsit emailuri valide în fișier!');
         }
@@ -124,19 +131,6 @@ function isValidEmail(email) {
     return emailRegex.test(email);
 }
 
-// Detectează limba bazată pe domeniu
-function detectLanguage(email) {
-    const domain = email.split('@')[1];
-    const romanianDomains = ['.ro', '.md'];
-    
-    for (let romDomain of romanianDomains) {
-        if (domain.includes(romDomain)) {
-            return 'ro';
-        }
-    }
-    return 'en';
-}
-
 // Afișează informațiile despre fișier
 function displayFileInfo() {
     document.getElementById('fileName').textContent = uploadedFileName;
@@ -144,50 +138,79 @@ function displayFileInfo() {
     document.getElementById('fileInfo').style.display = 'block';
 }
 
-// Afișează secțiunea de preview
-function showPreviewSection() {
-    // Template pentru emailuri în engleză
-    const englishTemplate = `Hey, [NUME]! 👋 I'm testing a tool that helps truck dispatchers automatically turn client orders in PDF format into clean Excel reports.
-
-You can use the Excel however you want — for internal tracking, reports, organizing loads, etc.
-
-It's still in demo, and I'm offering it 100% free to 5 dispatchers in exchange for a short testimonial or honest feedback.
-
-The data extraction isn't perfect yet, but I'll make sure everything is clean and correct for you.
-
-It's fast, web-based, and you can review or edit the data before using it.
-
-Would you be open to trying it out? No strings — just real feedback from dispatchers. 🚛📊`;
-
-    // Template pentru emailuri în română
-    const romanianTemplate = `Salut, [NUME]! 👋 Testez un tool care ajută dispecerii de transport să transforme comenzile primite în PDF în fișiere Excel clare — automat.
-
-Poate fi folosit pentru raport intern, evidență comenzi, organizare sau orice ai nevoie.
-
-Este în fază demo și caut 5 dispeceri care vor să-l încerce gratuit, în schimbul unui testimonial scurt.
-
-Extracția nu e 100% perfectă, dar mă ocup personal să fie totul corect pentru tine.
-
-Platforma e online, rapidă, iar datele pot fi verificate/editate înainte de salvare.
-
-Vrei să-l încerci? E complet gratuit — tot ce cer e feedback sincer. 🚛📊`;
-
-    // Afișează template-urile
-    document.getElementById('englishTemplate').textContent = englishTemplate;
-    document.getElementById('romanianTemplate').textContent = romanianTemplate;
+// Afișează secțiunea de template
+function showTemplateSection() {
+    document.getElementById('templateSection').style.display = 'block';
     
-    // Afișează secțiunile
-    document.getElementById('previewSection').style.display = 'block';
-    document.getElementById('actionSection').style.display = 'block';
+    // Set default template dacă nu există
+    const emailTemplate = document.getElementById('emailTemplate');
+    const emailSubject = document.getElementById('emailSubject');
     
-    // Adaugă event listener pentru butonul de trimitere
-    document.getElementById('sendEmails').addEventListener('click', startEmailSending);
+    if (!emailTemplate.value) {
+        emailTemplate.value = `Salut, [NUME]!
+
+Sper că totul merge bine la tine.
+
+Scrie aici mesajul tău personalizat...
+
+[NUME], dacă ești interesat/ă, te rog să îmi răspunzi la acest email.
+
+Cu respect,
+Numele Tău`;
+    }
+    
+    if (!emailSubject.value) {
+        emailSubject.value = 'Mesaj important pentru tine, [NUME]!';
+    }
+    
+    updatePreview();
+}
+
+// Actualizează preview-ul
+function updatePreview() {
+    const subject = document.getElementById('emailSubject').value;
+    const template = document.getElementById('emailTemplate').value;
+    
+    if (subject && template) {
+        // Afișează preview cu exemplu
+        const sampleName = emailData.length > 0 ? emailData[0].nume : 'John';
+        const previewSubject = subject.replace(/\[NUME\]/g, sampleName);
+        const previewContent = template.replace(/\[NUME\]/g, sampleName);
+        
+        document.getElementById('previewSubject').textContent = previewSubject;
+        document.getElementById('previewContent').textContent = previewContent;
+        
+        // Salvează template-urile
+        customSubject = subject;
+        customTemplate = template;
+        
+        // Afișează secțiunile
+        document.getElementById('previewSection').style.display = 'block';
+        document.getElementById('actionSection').style.display = 'block';
+        
+        // Adaugă event listener pentru butonul de trimitere (doar o dată)
+        const sendButton = document.getElementById('sendEmails');
+        if (!sendButton.hasAttribute('data-listener-added')) {
+            sendButton.addEventListener('click', startEmailSending);
+            sendButton.setAttribute('data-listener-added', 'true');
+        }
+    } else {
+        document.getElementById('previewSection').style.display = 'none';
+        document.getElementById('actionSection').style.display = 'none';
+    }
 }
 
 // Începe procesul de trimitere emailuri
 async function startEmailSending() {
     console.log('🚀 startEmailSending called!');
     console.log('📧 Email data:', emailData);
+    console.log('📝 Custom template:', customTemplate);
+    console.log('📋 Custom subject:', customSubject);
+    
+    if (!customTemplate || !customSubject) {
+        alert('Te rog completează subject-ul și template-ul emailului!');
+        return;
+    }
     
     // Ascunde butonul și arată progresul
     document.getElementById('actionSection').style.display = 'none';
@@ -200,13 +223,17 @@ async function startEmailSending() {
     try {
         console.log('📡 Sending request to server...');
         
-        // Trimite request către server
+        // Trimite request către server cu template-ul custom
         const response = await fetch('/send-emails', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ emailData: emailData })
+            body: JSON.stringify({ 
+                emailData: emailData,
+                customSubject: customSubject,
+                customTemplate: customTemplate
+            })
         });
         
         console.log('📥 Response received:', response);
@@ -336,17 +363,24 @@ function showFinalResults(results) {
 function resetApp() {
     emailData = [];
     uploadedFileName = '';
+    customTemplate = '';
+    customSubject = '';
     
     // Ascunde toate secțiunile
-    const sections = ['fileInfo', 'previewSection', 'actionSection', 'progressSection', 'resultsSection'];
+    const sections = ['fileInfo', 'templateSection', 'previewSection', 'actionSection', 'progressSection', 'resultsSection'];
     sections.forEach(sectionId => {
         const element = document.getElementById(sectionId);
         if (element) element.style.display = 'none';
     });
     
-    // Resetează input-ul
+    // Resetează input-urile
     const csvFileInput = document.getElementById('csvFile');
+    const emailSubject = document.getElementById('emailSubject');
+    const emailTemplate = document.getElementById('emailTemplate');
+    
     if (csvFileInput) csvFileInput.value = '';
+    if (emailSubject) emailSubject.value = '';
+    if (emailTemplate) emailTemplate.value = '';
     
     console.log('🔄 App reset');
 }
