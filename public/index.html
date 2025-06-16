@@ -13,23 +13,67 @@
             <p>Trimite emailuri personalizate automat pentru orice nișă</p>
         </header>
 
-        <div class="upload-section">
-            <h2>📁 Încarcă lista de emailuri (CSV)</h2>
-            <div class="upload-area" id="uploadArea">
-                <div class="upload-content">
-                    <div class="upload-icon">📄</div>
-                    <p>Drag & drop fișierul CSV aici sau</p>
-                    <button class="upload-btn" onclick="document.getElementById('csvFile').click()">
-                        Selectează fișierul CSV
-                    </button>
-                    <input type="file" id="csvFile" accept=".csv" style="display: none">
-                    <small>Format acceptat: .csv (email,nume)</small>
+        <div class="input-section">
+            <h2>📋 Alege metoda de introducere a emailurilor</h2>
+            
+            <!-- Tab buttons -->
+            <div class="tab-buttons">
+                <button class="tab-btn active" id="listTab" onclick="switchTab('list')">
+                    📝 Introduce lista direct
+                </button>
+                <button class="tab-btn" id="fileTab" onclick="switchTab('file')">
+                    📁 Încarcă fișier CSV
+                </button>
+            </div>
+
+            <!-- Email List Input Section -->
+            <div class="tab-content active" id="listContent">
+                <div class="list-input-section">
+                    <h3>📝 Introduce lista de emailuri</h3>
+                    <p class="instruction">Copiază și lipește emailurile aici, unul pe linie. Opțional poți adăuga și numele după email separat prin virgulă.</p>
+                    
+                    <textarea id="emailListInput" placeholder="office@heyrogersmith.com, Roger Smith
+mihai@logico.md, Mihai
+contact@transport.ro
+hr@example.com, John Manager
+info@company.com
+
+Dacă nu specifici numele, se va folosi automat 'MANAGER'..." class="email-list-textarea"></textarea>
+                    
+                    <div class="list-actions">
+                        <button class="process-btn" id="processListBtn" onclick="processEmailList()">
+                            🔄 Procesează lista
+                        </button>
+                        <button class="clear-btn" onclick="clearEmailList()">
+                            🗑️ Șterge lista
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- File Upload Section -->
+            <div class="tab-content" id="fileContent">
+                <div class="upload-section">
+                    <h3>📁 Încarcă fișier CSV existent</h3>
+                    <div class="upload-area" id="uploadArea">
+                        <div class="upload-content">
+                            <div class="upload-icon">📄</div>
+                            <p>Drag & drop fișierul CSV aici sau</p>
+                            <button class="upload-btn" onclick="document.getElementById('csvFile').click()">
+                                Selectează fișierul CSV
+                            </button>
+                            <input type="file" id="csvFile" accept=".csv" style="display: none">
+                            <small>Format acceptat: .csv (email,nume)</small>
+                        </div>
+                    </div>
                 </div>
             </div>
             
+            <!-- File Info -->
             <div class="file-info" id="fileInfo" style="display: none;">
-                <p><strong>Fișier încărcat:</strong> <span id="fileName"></span></p>
-                <p><strong>Numărul de emailuri:</strong> <span id="emailCount"></span></p>
+                <p><strong>📊 Emailuri procesate:</strong> <span id="emailCount"></span></p>
+                <p><strong>📋 Sursă:</strong> <span id="dataSource"></span></p>
+                <div class="preview-data" id="previewData"></div>
             </div>
         </div>
 
@@ -57,7 +101,7 @@ Exemplu:
 
 Cu respect,
 Numele Tău" class="template-textarea"></textarea>
-                <small>Folosește [NUME] pentru a înlocui automat cu numele din CSV</small>
+                <small>Folosește [NUME] pentru a înlocui automat cu numele din lista ta</small>
             </div>
         </div>
 
@@ -69,7 +113,7 @@ Numele Tău" class="template-textarea"></textarea>
                 </div>
                 <div class="preview-content" id="previewContent"></div>
                 <div class="preview-note">
-                    <small>Nota: [NUME] va fi înlocuit automat cu numele real din CSV pentru fiecare destinatar</small>
+                    <small>Nota: [NUME] va fi înlocuit automat cu numele real pentru fiecare destinatar</small>
                 </div>
             </div>
         </div>
@@ -79,6 +123,7 @@ Numele Tău" class="template-textarea"></textarea>
                 <span class="btn-icon">🚀</span>
                 Trimite toate emailurile
             </button>
+            <p class="timing-info">⏱️ Pauză de 4 secunde între emailuri pentru protecție anti-spam</p>
         </div>
 
         <div class="progress-section" id="progressSection" style="display: none;">

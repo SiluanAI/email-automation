@@ -3,6 +3,8 @@ let emailData = [];
 let uploadedFileName = '';
 let customTemplate = '';
 let customSubject = '';
+let eventSource = null;
+let dataSource = '';
 
 // Inițializare când pagina se încarcă
 document.addEventListener('DOMContentLoaded', function() {
@@ -28,6 +30,109 @@ function initializeApp() {
     emailTemplate.addEventListener('input', updatePreview);
     
     console.log('✅ App initialized successfully!');
+}
+
+// Switch între tab-uri
+function switchTab(tabName) {
+    // Resetează aplicația când schimbi tab-ul
+    resetApp();
+    
+    // Update tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    
+    document.getElementById(tabName + 'Tab').classList.add('active');
+    document.getElementById(tabName + 'Content').classList.add('active');
+}
+
+// Procesează lista de emailuri introdusă manual
+function processEmailList() {
+    const emailListText = document.getElementById('emailListInput').value.trim();
+    
+    if (!emailListText) {
+        alert('Te rog introduce lista de emailuri!');
+        return;
+    }
+    
+    try {
+        emailData = [];
+        const lines = emailListText.split('\n');
+        
+        for (let line of lines) {
+            line = line.trim();
+            if (!line) continue; // Skip empty lines
+            
+            let email, nume;
+            
+            // Verifică dacă linia conține virgulă (email + nume)
+            if (line.includes(',')) {
+                const parts = line.split(',');
+                email = parts[0].trim();
+                nume = parts[1].trim() || 'MANAGER';
+            } else {
+                // Doar email, folosește MANAGER ca nume
+                email = line.trim();
+                nume = 'MANAGER';
+            }
+            
+            // Validează emailul
+            if (isValidEmail(email)) {
+                emailData.push({
+                    email: email,
+                    nume: nume
+                });
+            } else {
+                console.warn('Email invalid ignorat:', email);
+            }
+        }
+        
+        if (emailData.length > 0) {
+            dataSource = 'Listă introdusă manual';
+            displayProcessedEmails();
+            showTemplateSection();
+        } else {
+            alert('Nu s-au găsit emailuri valide în lista introdusă!');
+        }
+        
+    } catch (error) {
+        console.error('Eroare la procesarea listei:', error);
+        alert('Eroare la procesarea listei de emailuri!');
+    }
+}
+
+// Șterge lista de emailuri
+function clearEmailList() {
+    document.getElementById('emailListInput').value = '';
+    resetApp();
+}
+
+// Afișează emailurile procesate
+function displayProcessedEmails() {
+    document.getElementById('emailCount').textContent = emailData.length;
+    document.getElementById('dataSource').textContent = dataSource;
+    
+    // Creează preview-ul
+    const previewData = document.getElementById('previewData');
+    const maxShow = 10; // Afișează maxim 10 emailuri în preview
+    
+    let previewHTML = '<h4>📋 Preview primele ' + Math.min(maxShow, emailData.length) + ' emailuri:</h4>';
+    
+    for (let i = 0; i < Math.min(maxShow, emailData.length); i++) {
+        const item = emailData[i];
+        previewHTML += `
+            <div class="email-preview-item">
+                <span class="email">${item.email}</span>
+                <span class="name">${item.nume}</span>
+            </div>
+        `;
+    }
+    
+    if (emailData.length > maxShow) {
+        previewHTML += `<p style="text-align: center; margin-top: 10px; font-style: italic;">... și încă ${emailData.length - maxShow} emailuri</p>`;
+    }
+    
+    previewData.innerHTML = previewHTML;
+    document.getElementById('fileInfo').style.display = 'block';
 }
 
 // Gestionează selectarea fișierului
@@ -72,6 +177,7 @@ function handleFileDrop(event) {
 // Procesează fișierul CSV
 function processCSVFile(file) {
     uploadedFileName = file.name;
+    dataSource = 'Fișier CSV: ' + uploadedFileName;
     
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -113,7 +219,7 @@ function parseCSVData(csvText) {
         }
         
         if (emailData.length > 0) {
-            displayFileInfo();
+            displayProcessedEmails();
             showTemplateSection();
         } else {
             alert('Nu s-au găsit emailuri valide în fișier!');
@@ -129,13 +235,6 @@ function parseCSVData(csvText) {
 function isValidEmail(email) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
-}
-
-// Afișează informațiile despre fișier
-function displayFileInfo() {
-    document.getElementById('fileName').textContent = uploadedFileName;
-    document.getElementById('emailCount').textContent = emailData.length;
-    document.getElementById('fileInfo').style.display = 'block';
 }
 
 // Afișează secțiunea de template
@@ -173,7 +272,7 @@ function updatePreview() {
     
     if (subject && template) {
         // Afișează preview cu exemplu
-        const sampleName = emailData.length > 0 ? emailData[0].nume : 'John';
+        const sampleName = emailData.length > 0 ? emailData[0].nume : 'MANAGER';
         const previewSubject = subject.replace(/\[NUME\]/g, sampleName);
         const previewContent = template.replace(/\[NUME\]/g, sampleName);
         
@@ -200,7 +299,7 @@ function updatePreview() {
     }
 }
 
-// Începe procesul de trimitere emailuri
+// Începe procesul de trimitere emailuri cu progres în timp real
 async function startEmailSending() {
     console.log('🚀 startEmailSending called!');
     console.log('📧 Email data:', emailData);
@@ -218,12 +317,12 @@ async function startEmailSending() {
     
     // Inițializează progresul
     updateProgress(0, emailData.length, 0, 0);
-    addLogEntry('🚀 Începe trimiterea emailurilor...', 'info');
+    addLogEntry('🚀 Începe trimiterea emailurilor cu pauză de 4 secunde...', 'info');
     
     try {
         console.log('📡 Sending request to server...');
         
-        // Trimite request către server cu template-ul custom
+        // Trimite request către server
         const response = await fetch('/send-emails', {
             method: 'POST',
             headers: {
@@ -236,14 +335,12 @@ async function startEmailSending() {
             })
         });
         
-        console.log('📥 Response received:', response);
-        
         const result = await response.json();
         console.log('📊 Result:', result);
         
-        if (result.success) {
-            // Simulează progres în timp real
-            await simulateProgressAndShowResults(result.results);
+        if (result.success && result.sessionId) {
+            // Începe să asculte progresul în timp real
+            startProgressListener(result.sessionId);
         } else {
             addLogEntry(`❌ Eroare: ${result.message}`, 'error');
         }
@@ -254,39 +351,71 @@ async function startEmailSending() {
     }
 }
 
-// Simulează progresul în timp real și afișează rezultatele
-async function simulateProgressAndShowResults(results) {
-    console.log('🎬 Starting progress simulation...');
+// Pornește listener-ul pentru progres în timp real
+function startProgressListener(sessionId) {
+    console.log('📡 Starting real-time progress listener for session:', sessionId);
     
-    const total = results.total;
-    let processed = 0;
-    
-    // Simulează procesarea email cu email
-    for (let detail of results.details) {
-        processed++;
-        
-        // Calculează statisticile
-        const sent = results.details.slice(0, processed).filter(d => d.status === 'sent').length;
-        const failed = results.details.slice(0, processed).filter(d => d.status === 'failed').length;
-        
-        // Actualizează progresul
-        updateProgress(processed, total, sent, failed);
-        
-        // Adaugă log entry
-        if (detail.status === 'sent') {
-            addLogEntry(`✅ Email trimis cu succes către ${detail.email} (${detail.name})`, 'success');
-        } else {
-            addLogEntry(`❌ Eșuat: ${detail.email} - ${detail.error}`, 'error');
-        }
-        
-        // Pauză pentru a simula trimiterea în timp real
-        await new Promise(resolve => setTimeout(resolve, 500));
+    // Închide conexiunea existentă dacă există
+    if (eventSource) {
+        eventSource.close();
     }
     
-    // Afișează rezultatele finale
-    setTimeout(() => {
-        showFinalResults(results);
-    }, 1000);
+    // Creează conexiunea SSE
+    eventSource = new EventSource(`/progress/${sessionId}`);
+    
+    eventSource.onmessage = function(event) {
+        try {
+            const data = JSON.parse(event.data);
+            console.log('📨 Progress update received:', data);
+            
+            switch (data.type) {
+                case 'start':
+                    updateProgress(0, data.total, 0, 0);
+                    addLogEntry(data.message, 'info');
+                    break;
+                    
+                case 'progress':
+                    updateProgress(data.processed, data.total, data.sent, data.failed);
+                    
+                    if (data.status === 'sent') {
+                        addLogEntry(`✅ ${data.message}`, 'success');
+                    } else if (data.status === 'failed') {
+                        addLogEntry(`❌ ${data.message}`, 'error');
+                    }
+                    break;
+                    
+                case 'waiting':
+                    addLogEntry(`⏱️ ${data.message}`, 'info');
+                    break;
+                    
+                case 'complete':
+                    updateProgress(data.total, data.total, data.sent, data.failed);
+                    addLogEntry(`🎉 ${data.message}`, 'success');
+                    
+                    // Afișează rezultatele finale
+                    setTimeout(() => {
+                        showFinalResults(data.results);
+                        eventSource.close();
+                    }, 1000);
+                    break;
+                    
+                case 'ping':
+                    // Keep-alive, ignoră
+                    break;
+                    
+                default:
+                    console.log('📨 Unknown progress type:', data.type);
+            }
+        } catch (error) {
+            console.error('Error parsing progress data:', error);
+        }
+    };
+    
+    eventSource.onerror = function(error) {
+        console.error('SSE Error:', error);
+        addLogEntry('❌ Conexiune întreruptă cu serverul', 'error');
+        eventSource.close();
+    };
 }
 
 // Actualizează bara de progres și statisticile
@@ -355,8 +484,6 @@ function showFinalResults(results) {
     
     if (progressSection) progressSection.style.display = 'none';
     if (resultsSection) resultsSection.style.display = 'block';
-    
-    addLogEntry(`🎉 Trimitere completă! ${results.sent}/${results.total} emailuri trimise cu succes.`, 'success');
 }
 
 // Reset aplicația
@@ -365,6 +492,13 @@ function resetApp() {
     uploadedFileName = '';
     customTemplate = '';
     customSubject = '';
+    dataSource = '';
+    
+    // Închide conexiunea SSE dacă există
+    if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+    }
     
     // Ascunde toate secțiunile
     const sections = ['fileInfo', 'templateSection', 'previewSection', 'actionSection', 'progressSection', 'resultsSection'];
@@ -377,10 +511,12 @@ function resetApp() {
     const csvFileInput = document.getElementById('csvFile');
     const emailSubject = document.getElementById('emailSubject');
     const emailTemplate = document.getElementById('emailTemplate');
+    const sendButton = document.getElementById('sendEmails');
     
     if (csvFileInput) csvFileInput.value = '';
     if (emailSubject) emailSubject.value = '';
     if (emailTemplate) emailTemplate.value = '';
+    if (sendButton) sendButton.removeAttribute('data-listener-added');
     
     console.log('🔄 App reset');
 }
